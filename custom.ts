@@ -1,0 +1,338 @@
+/**
+ * Writing data for hacking stem experiments
+ */
+//% weight=94 color=#EC7505 icon="\uf1b3"
+namespace hourOfCode {
+    // the agentDestroy and hazardsRemain functions are supposed to
+    // look indistinguishable from lesson to lesson, since only one
+    // set will ever appear at a time. their display names should
+    // not specifically include which lesson they are a part of
+    let targetsL4 = 5
+    let targetsL5 = 10
+    let targetsL6 = 49
+    let counterL4 = 9
+    let counterL5 = 30
+    let counterL6 = 60
+    let shortHazards = [31, FERN, TALLGRASS]    // single-block plants and old base id
+    let tallHazards = [175, PEONY, ROSE_BUSH, DOUBLE_TALLGRASS, LARGE_FERN, LILAC, SUNFLOWER] // double plants and old base id
+    let airBlock = Block.Air
+    let brokeNonHazard = false
+    let taskIsComplete = false
+    let monitorCount = 18
+
+    // hidden from user, used by other functions
+    //% block
+    function completeTask() {
+        if (!taskIsComplete) {
+            mobs.execute(
+                mobs.target(TargetSelectorKind.NearestPlayer),
+                positions.create(0, 0, 0),
+                "scoreboard players set @s success 1"
+            )
+            taskIsComplete = true
+        }
+    }
+
+    /**
+     * Opens a gate
+     */
+    //% block="open gate"
+    //% weight=90
+    export function openDoor() {
+        completeTask()
+    }
+
+    /**
+     * Detects if there is a dry fern next to the agent in the specified direction
+     * @param dir the direction to detect the dry fern
+     */
+    //% block="agent detect dry fern %dir"
+    //% weight=80
+    export function agentDetectDryFern(dir: SixDirection) {
+        return shortHazards.indexOf(agent.inspect(AgentInspection.Block, dir)) != -1
+    }
+
+    /**
+     * Detects if there is dry grass next to the agent in the specified direction
+     * @param dir the direction to detect the dry grass
+     */
+    //% block="agent detect dry grass %dir"
+    //% weight=80
+    export function agentDetectDryGrass(dir: SixDirection) {
+        return tallHazards.indexOf(agent.inspect(AgentInspection.Block, dir)) != -1
+    }
+
+    /**
+     * Detects if there is dry brush next to the agent in the specified direction
+     * @param dir the direction to detect the dry brush
+     */
+    //% block="agent detect dry brush %dir"
+    //% weight=80
+    export function agentDetectDryBrush(dir: SixDirection) {
+        let currentTarget = agent.inspect(AgentInspection.Block, dir)
+        return tallHazards.indexOf(currentTarget) != -1 || shortHazards.indexOf(currentTarget) != -1
+    }
+
+    /**
+     * Check for any hazards in a direction
+     * @param dir the direction to check for hazards
+     */
+    //% block="agent analyze %dir"
+    //% weight=70
+    export function agentAnalyze(dir: SixDirection) {
+        let targetBlock = agent.inspect(AgentInspection.Block, dir)
+        if (shortHazards.indexOf(targetBlock) != -1 || tallHazards.indexOf(targetBlock) != -1) {
+            mobs.execute(
+                mobs.target(TargetSelectorKind.NearestPlayer),
+                positions.create(0, 0, 0),
+                "playsound random.levelup @p"
+            )
+            completeTask()
+        }
+    }
+
+    /**
+     * Checks that there are fire hazards
+     */
+    //% block="hazards remain"
+    //% weight=45
+    export function hazardsRemainL4() {
+        let timeout = 10
+        if (agent.inspect(AgentInspection.Block, SixDirection.Forward) == airBlock) {
+            counterL4--
+            if (targetsL4 <= 0) {
+                completeTask()
+                return false
+            } else if (counterL4 < 0) {
+                return false
+            } else if (brokeNonHazard) {
+                return false
+            }
+            // Keep testing until the next hazard appears (air means it has not)
+            while (agent.inspect(AgentInspection.Block, SixDirection.Forward) == airBlock) {
+                // If a hazard has not appeared, wait 6 ticks before testing again
+                for (let index = 0; index < 6; index++) {
+                    // We use testForBlock because it takes one tick (this is more reliable than waiting for X milliseconds because it's not platform dependent)
+                    blocks.testForBlock(GRASS, world(-60, 71, -90)); // we're ignoring the return value since we just use this to pass time
+                }
+                if (timeout-- <= 0) {
+                    return false
+                }
+            }
+        }
+
+        // If we reached this point, a hazard has appeared! return true here so the student's code inside the while(hazardsRemain) can continue
+        return true
+    }
+
+    /**
+     * Commands the agent to destroy a block in the given direction
+     * @param dir the direction to destroy a block at
+     */
+    //% block="agent destroy %dir"
+    //% weight=40
+    export function agentDestroyL4(dir: SixDirection) {
+        let targetBlock4 = agent.inspect(AgentInspection.Block, dir)
+        if (shortHazards.indexOf(targetBlock4) != -1 || tallHazards.indexOf(targetBlock4) != -1) {
+            targetsL4--
+        } else if (targetBlock4 != airBlock) {
+            brokeNonHazard = true
+        }
+        agent.destroy(dir)
+    }
+
+    /**
+     * Checks that there are fire hazards
+     */
+    //% block="hazards remain"
+    //% weight=55
+    export function hazardsRemainL5() {
+        counterL5--
+        if (brokeNonHazard) {
+            return false
+        } else if (counterL5 < 0) {
+            return false
+        } else if (targetsL5 <= 0) {
+            completeTask()
+            return false
+        } else {
+            return true
+        }
+    }
+
+    /**
+     * Commands the agent to destroy a block in the given direction
+     * @param dir the direction to destroy a block at
+     */
+    //% block="agent destroy %dir"
+    //% weight=50
+    export function agentDestroyL5(dir: SixDirection) {
+        let targetZ5 = 70
+        let agentZ5 = agent.getPosition().getValue(Axis.Z)
+        let targetBlock5 = agent.inspect(AgentInspection.Block, dir)
+        if (shortHazards.indexOf(targetBlock5) != -1 || tallHazards.indexOf(targetBlock5) != -1) {
+            if (Math.abs(agentZ5 - targetZ5) <= 1) {
+                targetsL5--
+            } else {
+                brokeNonHazard = true
+            }
+        } else if (targetBlock5 != airBlock) {
+            brokeNonHazard = true
+        }
+        agent.destroy(dir)
+    }
+
+    /**
+     * Checks that there are fire hazards
+     */
+    //% block="hazards remain"
+    //% weight=65
+    export function hazardsRemainL6() {
+        counterL6--
+        if (brokeNonHazard) {
+            return false
+        } else if (counterL6 < 0) {
+            return false
+        } else if (targetsL6 <= 0) {
+            completeTask()
+            return false
+        } else {
+            return true
+        }
+    }
+
+    /**
+     * Commands the agent to destroy a block in the given direction
+     * @param dir the direction to destroy a block at
+     */
+    //% block="agent destroy %dir"
+    //% weight=60
+    export function agentDestroyL6(dir: SixDirection) {
+        let targetX6 = -8
+        let targetZ6 = 77
+        let radius = 5
+        let agentX6 = agent.getPosition().getValue(Axis.X)
+        let agentZ6 = agent.getPosition().getValue(Axis.Z)
+        let targetBlock6 = agent.inspect(AgentInspection.Block, dir)
+        if (shortHazards.indexOf(targetBlock6) != -1 || tallHazards.indexOf(targetBlock6) != -1) {
+            if (Math.abs(agentX6 - targetX6) <= radius && Math.abs(agentZ6 - targetZ6) <= radius) {
+                targetsL6--
+            } else {
+                brokeNonHazard = true
+            }
+        } else if (targetBlock6 != airBlock) {
+            brokeNonHazard = true
+        }
+        agent.destroy(dir)
+    }
+
+    /**
+     * Agent watches the monitor for hazards
+     */
+    //% block="agent look for hazards"
+    //% weight=75
+    export function agentLookForHazards() {
+        monitorCount--
+        loops.pause(500)
+        if (taskIsComplete) {
+            return false
+        } else if (monitorCount < 0) {
+            return false
+        } else {
+            return true
+        }
+    }
+
+    /**
+     * Sees that there is a hazard on the monitor
+     */
+    //% block="hazard found"
+    //% weight=74
+    export function agentSeeHazard() {
+        let hiddenTarget = positions.createWorld(-63, 68, -78)
+        let successBlock = Block.GoldBlock
+        return blocks.testForBlock(successBlock, hiddenTarget)
+    }
+
+    /**
+     * Warns the team of a high-risk area
+     */
+    //% block="alert team"
+    //% weight = 70
+    export function alertTeam() {
+        agent.attack(SixDirection.Up)
+        if (agentSeeHazard()) {
+            completeTask()
+        } else {
+            monitorCount = -1
+        }
+    }
+
+    /**
+     * Commands the agent to place a redstone torch in the specified direction
+     */
+    //% block="agent place redstone torch %dir"
+    //% weight = 97
+    export function agentPlaceRedstoneTorch(dir: SixDirection) {
+        let MIN_SLOT = 1
+        let MAX_SLOT = 27
+        let randomSlot = Math.randomRange(MIN_SLOT, MAX_SLOT)
+        agent.setItem(REDSTONE_TORCH, 1, randomSlot)
+        agent.setSlot(randomSlot)
+        agent.place(dir)
+        agent.setItem(AIR, 1, randomSlot)
+    }
+
+    /**
+     * Commands the agent to place an acacia plank in the specified direction
+     */
+    //% block="agent place acacia %dir"
+    //% weight = 98
+    export function agentPlaceAcacia(dir: SixDirection) {
+        let MIN_SLOT = 1
+        let MAX_SLOT = 27
+        let randomSlot = Math.randomRange(MIN_SLOT, MAX_SLOT)
+        agent.setItem(PLANKS_ACACIA, 1, randomSlot)
+        agent.setSlot(randomSlot)
+        agent.place(dir)
+        agent.setItem(AIR, 1, randomSlot)
+    }
+
+    /**
+     * Commands the agent to plant carrots downwards
+     */
+    //% block="agent plant carrots"
+    //% weight = 99
+    export function agentPlantCarrots() {
+        let MIN_SLOT = 1
+        let MAX_SLOT = 27
+        let randomSlot = Math.randomRange(MIN_SLOT, MAX_SLOT)
+        agent.setItem(CARROTS, 1, randomSlot)
+        agent.setSlot(randomSlot)
+        agent.place(DOWN)
+        agent.setItem(AIR, 1, randomSlot)
+    }
+
+    /**
+     * Checks whether the agent has reached the goal
+     */
+    //% block="goal not reached"
+    //% weight = 96
+    export function goalNotReached() {
+        return agent.inspect(AgentInspection.Block, DOWN) != GOLD_BLOCK
+    }
+
+    /**
+     * Commands the agent to collect all nearby blocks and items
+     */
+    //% block="collect all"
+    //% weight = 95
+    export function collectAndCount() {
+        let SLOT_NUMBER = 1
+        let TOTAL_PIECES = 29
+        agent.collectAll()
+        if (agent.getItemCount(SLOT_NUMBER) >= TOTAL_PIECES) {
+            blocks.place(REDSTONE_TORCH, world(-143, 31, 59))
+        }
+    }
+}
